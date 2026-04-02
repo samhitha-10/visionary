@@ -3,57 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EyeGuide - AI Guide</title>
+    <title>EyeGuide - Voice Controlled</title>
     <style>
-        body { margin: 0; padding: 0; background: #222; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
+        body { margin: 0; padding: 0; background: #111; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
         
         /* --- SCREENS --- */
-        .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center; position: relative; }
+        .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center; position: relative; background: #000; }
         .active-screen { display: flex; }
         
-        /* --- CONTROLS --- */
-        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; max-width: 300px; transition: 0.2s; }
-        .btn-primary { background: #0f0; color: black; }
-        .btn-primary:hover { transform: scale(1.05); }
-        .btn-vehicle { background: #00aaff; color: white; }
-        input { padding: 15px; font-size: 18px; margin: 10px; border-radius: 8px; border: none; width: 80%; max-width: 300px; text-align: center; }
+        /* --- BIG BUTTONS --- */
+        .btn-start {
+            padding: 30px 60px; font-size: 28px; border: none; border-radius: 50px;
+            background: linear-gradient(45deg, #00ff00, #00aa00); color: #000;
+            font-weight: bold; cursor: pointer; box-shadow: 0 0 30px #00ff00;
+            animation: glow 2s infinite alternate;
+        }
+        @keyframes glow { from { box-shadow: 0 0 10px #00ff00; } to { box-shadow: 0 0 30px #00ff00; } }
 
-        /* --- APP VIEW --- */
-        #screen-app { justify-content: flex-start; padding: 0; overflow: hidden; background: #000; }
+        /* --- LISTENING UI --- */
+        .listening-indicator {
+            font-size: 24px; color: #0f0; margin-top: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .mic-pulse {
+            width: 40px; height: 40px; background: red; border-radius: 50%;
+            animation: pulse-red 1s infinite;
+        }
+        @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* --- APP UI --- */
+        #screen-app { justify-content: flex-start; padding: 0; overflow: hidden; }
         #webcam { display: none; }
-        
-        /* Canvas holds Camera Image + AR Overlays */
         #output { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-        
         #map-view { display: none; width: 100%; height: 100%; border: 0; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* --- HUD --- */
-        #hud {
-            position: absolute; top: 0; left: 0; width: 100%; padding: 15px;
-            box-sizing: border-box; display: flex; justify-content: space-between; align-items: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
-            z-index: 20;
-        }
-        .hud-info { background: rgba(0, 0, 0, 0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #444; font-size: 14px; }
+        /* HUD */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; }
+        .hud-info { background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #444; font-size: 14px; }
         .distance-display { color: #ffcc00; font-weight: bold; font-size: 18px; border: 1px solid #ffcc00; }
-
-        /* --- MIC BUTTON --- */
-        #mic-btn {
-            background: rgba(0, 255, 0, 0.3); border: 2px solid #0f0; color: #0f0;
-            font-size: 24px; padding: 0; width: 60px; height: 60px; border-radius: 50%;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;
-        }
-        #mic-btn.listening { background: red; border-color: red; color: white; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
-
-        /* --- NAVIGATION ARROW --- */
-        #nav-arrow {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 100px; color: rgba(255, 204, 0, 0.8); text-shadow: 0 0 10px black;
-            z-index: 15; display: none; pointer-events: none; transition: transform 0.2s ease-out;
-        }
-
-        /* --- DANGER ALERT --- */
+        
+        /* AR Arrow */
+        #nav-arrow { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; color: rgba(255, 204, 0, 0.8); text-shadow: 0 0 10px black; z-index: 15; display: none; pointer-events: none; transition: transform 0.2s; }
+        
+        /* Danger */
         #danger-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
         #danger-text { font-size: 40px; font-weight: bold; color: white; text-shadow: 0 0 10px red; text-align: center; }
     </style>
@@ -63,56 +55,59 @@
 </head>
 <body>
 
-    <!-- 1. WELCOME -->
-    <div id="screen-welcome" class="screen active-screen">
+    <!-- 1. START SCREEN -->
+    <div id="screen-start" class="screen active-screen">
         <h1>EYE GUIDE</h1>
-        <p>Your Safety & Navigation Companion.</p>
-        <button class="btn-primary" onclick="startApp()">START</button>
+        <p>Voice Controlled Assistant</p>
+        <button class="btn-start" onclick="startProcess()">START PROCESS</button>
     </div>
 
-    <!-- 2. NAME SCREEN -->
+    <!-- 2. VOICE NAME -->
     <div id="screen-name" class="screen">
         <h2>What is your name?</h2>
-        <input type="text" id="input-name" placeholder="Enter Name">
-        <button class="btn-primary" onclick="saveName()">NEXT</button>
+        <div class="listening-indicator">
+            <div class="mic-pulse"></div> Listening...
+        </div>
+        <p id="result-name" style="margin-top:20px; color:#aaa;">...</p>
     </div>
 
-    <!-- 3. PERMISSIONS SCREEN -->
-    <div id="screen-permissions" class="screen">
-        <h2>Permissions</h2>
-        <p>Allow Camera & Location for Safety & Navigation.</p>
-        <button class="btn-primary" onclick="requestPermissions()">ENABLE ACCESS</button>
+    <!-- 3. VOICE PHONE -->
+    <div id="screen-phone" class="screen">
+        <h2>What is your phone number?</h2>
+        <div class="listening-indicator">
+            <div class="mic-pulse"></div> Listening...
+        </div>
+        <p id="result-phone" style="margin-top:20px; color:#aaa;">...</p>
     </div>
 
-    <!-- 4. MODE SELECTION SCREEN (Moved Up) -->
+    <!-- 4. VOICE MODE -->
     <div id="screen-mode" class="screen">
-        <h2>Choose Travel Mode</h2>
-        <p>How are you traveling?</p>
-        <button class="btn-primary" onclick="selectMode('WALK')">🚶‍♂️ WALK</button>
-        <button class="btn-primary btn-vehicle" onclick="selectMode('VEHICLE')">🚗 VEHICLE</button>
+        <h2>Do you want to Walk or take a Vehicle?</h2>
+        <div class="listening-indicator">
+            <div class="mic-pulse"></div> Listening...
+        </div>
+        <p id="result-mode" style="margin-top:20px; color:#aaa;">...</p>
     </div>
 
-    <!-- 5. DESTINATION SCREEN (Moved Down) -->
-    <div id="screen-destination" class="screen">
+    <!-- 5. VOICE DESTINATION -->
+    <div id="screen-dest" class="screen">
         <h2>Where are you going?</h2>
-        <p>Enter your destination.</p>
-        <input type="text" id="input-dest" placeholder="e.g. Central Park">
-        <button class="btn-primary" onclick="startNavigation()">START GUIDANCE</button>
-        <button class="btn-vehicle" onclick="activateVoiceInput()">🎙️ Or Speak Destination</button>
+        <div class="listening-indicator">
+            <div class="mic-pulse"></div> Listening...
+        </div>
+        <p id="result-dest" style="margin-top:20px; color:#aaa;">...</p>
     </div>
 
-    <!-- 6. APP SCREEN (Camera & Maps) -->
+    <!-- 6. APP SCREEN -->
     <div id="screen-app" class="screen">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output"></canvas>
         <iframe id="map-view" src="" allowfullscreen></iframe>
         
-        <!-- THE AR ARROW -->
         <div id="nav-arrow">⬆️</div>
 
         <div id="hud">
             <div class="hud-info" id="hud-mode">MODE: --</div>
-            <button id="mic-btn" onclick="toggleMic()">🎙️</button>
             <div class="distance-display" id="dist-display">-- m</div>
         </div>
 
@@ -121,34 +116,30 @@
 
     <script>
         // --- STATE ---
-        let userName = "";
-        let travelMode = ""; // "WALK" or "VEHICLE"
-        let destination = "";
+        let step = 'START'; // START, NAME, PHONE, MODE, DEST, APP
+        let userData = { name: "", phone: "", mode: "", dest: "" };
         
         // --- NAVIGATION STATE ---
         let currentPos = { lat: 0, lng: 0 };
         let destPos = { lat: 0, lng: 0 };
         let lastNavSpeak = 0;
 
-        // --- AI & CAM ---
-        let model = undefined;
-        let isModelLoaded = false;
-        let isEmergency = false;
+        // --- AI ---
+        let model, isModelLoaded = false, isEmergency = false;
         let video, canvas, ctx;
 
-        // --- VOICE ---
-        let recognition, isMicActive = false;
+        // --- VOICE ENGINE ---
+        let recognition;
 
         // --- ELEMENTS ---
         video = document.getElementById('webcam');
         canvas = document.getElementById('output');
         ctx = canvas.getContext('2d');
         const screens = document.querySelectorAll('.screen');
-        const micBtn = document.getElementById('mic-btn');
         const navArrow = document.getElementById('nav-arrow');
         const distDisplay = document.getElementById('dist-display');
 
-        // --- NAVIGATION FUNCTIONS ---
+        // --- NAVIGATION ---
         function showScreen(id) {
             screens.forEach(s => s.classList.remove('active-screen'));
             document.getElementById(id).classList.add('active-screen');
@@ -163,87 +154,128 @@
             }
         }
 
-        // --- FLOW: 1. NAME ---
-        function startApp() {
-            speak("Welcome to Eye Guide. Please tell me your name.");
+        // --- 1. START PROCESS ---
+        function startProcess() {
+            // Init Voice Engine
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(!SpeechRecognition) {
+                alert("Voice not supported in this browser. Use Chrome.");
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onresult = (e) => {
+                const transcript = e.results[0][0].transcript;
+                handleVoiceInput(transcript);
+            };
+
+            recognition.onend = () => {
+                // Auto-restart if still in a voice step
+                if(['NAME', 'PHONE', 'MODE', 'DEST'].includes(step)) {
+                    setTimeout(() => recognition.start(), 100);
+                }
+            };
+
+            recognition.onerror = (e) => {
+                console.error(e);
+                // Keep trying
+                if(['NAME', 'PHONE', 'MODE', 'DEST'].includes(step)) {
+                    setTimeout(() => recognition.start(), 1000);
+                }
+            };
+
+            // Move to Name Step
+            step = 'NAME';
             showScreen('screen-name');
+            speak("What is your name?");
+            setTimeout(() => recognition.start(), 1000);
         }
 
-        function saveName() {
-            userName = document.getElementById('input-name').value;
-            if(!userName) return speak("Please enter your name.");
-            speak(`Hello ${userName}. Next, we need camera and location access.`);
-            showScreen('screen-permissions');
+        // --- VOICE LOGIC HANDLER ---
+        function handleVoiceInput(text) {
+            text = text.toLowerCase();
+            console.log("Heard: " + text + " | Step: " + step);
+
+            if (step === 'NAME') {
+                userData.name = text;
+                document.getElementById('result-name').innerText = "Name: " + userData.name;
+                speak("Got it. What is your phone number?");
+                step = 'PHONE';
+                showScreen('screen-phone');
+            } 
+            else if (step === 'PHONE') {
+                userData.phone = text;
+                document.getElementById('result-phone').innerText = "Phone: " + userData.phone;
+                speak("Saved. Do you want to Walk or take a Vehicle?");
+                step = 'MODE';
+                showScreen('screen-mode');
+            } 
+            else if (step === 'MODE') {
+                if (text.includes('walk')) {
+                    userData.mode = 'WALK';
+                    document.getElementById('result-mode').innerText = "Mode: WALK";
+                    speak("Walking mode selected. Where are you going?");
+                    step = 'DEST';
+                    showScreen('screen-dest');
+                } else if (text.includes('vehicle') || text.includes('car') || text.includes('drive')) {
+                    userData.mode = 'VEHICLE';
+                    document.getElementById('result-mode').innerText = "Mode: VEHICLE";
+                    speak("Vehicle mode selected. Where are you going?");
+                    step = 'DEST';
+                    showScreen('screen-dest');
+                } else {
+                    speak("Please say Walk or Vehicle.");
+                }
+            } 
+            else if (step === 'DEST') {
+                userData.dest = text;
+                document.getElementById('result-dest').innerText = "Dest: " + userData.dest;
+                speak("Navigating to " + userData.dest + ".");
+                step = 'APP';
+                initPermissionsAndApp();
+            }
         }
 
-        // --- FLOW: 2. PERMISSIONS ---
-        async function requestPermissions() {
+        // --- 2. PERMISSIONS & START APP ---
+        async function initPermissionsAndApp() {
             try {
-                // Camera
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
                 video.srcObject = stream;
                 await new Promise(r => video.onloadedmetadata = r);
 
-                // GPS - Start tracking immediately
+                // GPS
                 if ("geolocation" in navigator) {
                     navigator.geolocation.watchPosition((pos) => {
                         currentPos.lat = pos.coords.latitude;
                         currentPos.lng = pos.coords.longitude;
-                        if(destPos.lat) updateNavigation(); // Only update if dest is set
+                        if(destPos.lat) updateNavigation();
                     });
                 }
 
-                initVoiceEngine();
-                speak("Access granted. How would you like to travel?");
-                showScreen('screen-mode');
+                // Set Simulated Dest
+                destPos.lat = currentPos.lat + 0.002; 
+                destPos.lng = currentPos.lng;
+
+                startMainApp();
+
             } catch (err) {
                 speak("Camera or GPS access denied.");
-                alert("Please allow camera and location access.");
             }
         }
 
-        // --- FLOW: 3. SELECT MODE ---
-        function selectMode(mode) {
-            travelMode = mode;
-            speak(`You selected ${mode} mode. Where are you going?`);
-            showScreen('screen-destination');
-        }
-
-        // --- FLOW: 4. DESTINATION & START ---
-        function startNavigation() {
-            destination = document.getElementById('input-dest').value;
-            if(!destination) return speak("Please enter a destination.");
-            
-            speak(`Navigating to ${destination}.`);
-            
-            // Set a simulated destination (200m North) for the demo
-            // In a real app, you would use a Geocoding API here.
-            destPos.lat = currentPos.lat + 0.002; 
-            destPos.lng = currentPos.lng;
-
-            startMainApp();
-        }
-
-        function activateVoiceInput() {
-            if(!recognition) initVoiceEngine();
-            if(isMicActive) recognition.stop();
-            else recognition.start();
-        }
-
-        // --- MAIN APP LOGIC ---
         function startMainApp() {
             showScreen('screen-app');
-            document.getElementById('hud-mode').innerText = "MODE: " + travelMode;
+            document.getElementById('hud-mode').innerText = "MODE: " + userData.mode;
 
-            if (travelMode === "WALK") {
-                // WALK MODE: Camera + AR + Hazard Detection
+            if (userData.mode === "WALK") {
                 canvas.style.display = "block";
                 document.getElementById('map-view').style.display = "none";
                 navArrow.style.display = "block";
                 
                 speak("Walking mode active. Follow the yellow arrow.");
-                
-                // Load AI
                 cocoSsd.load().then(m => { 
                     model = m; isModelLoaded = true; 
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight; 
@@ -251,9 +283,8 @@
                 });
 
             } else {
-                // VEHICLE MODE: Google Maps Only
                 canvas.style.display = "none";
-                navArrow.style.display = "none"; // Hide AR arrow
+                navArrow.style.display = "none";
                 document.getElementById('map-view').style.display = "block";
                 
                 speak("Vehicle mode active. Following map route.");
@@ -262,9 +293,9 @@
             }
         }
 
-        // --- 🧭 AR NAVIGATION (Walk Only) ---
+        // --- 3. NAVIGATION LOGIC (AR & HAZARD) ---
         function updateNavigation() {
-            if (travelMode !== "WALK") return;
+            if (userData.mode !== "WALK") return;
 
             const distance = getDistanceFromLatLonInM(currentPos.lat, currentPos.lng, destPos.lat, destPos.lng);
             distDisplay.innerText = Math.round(distance) + " m";
@@ -275,7 +306,6 @@
                 return;
             }
 
-            // Calculate Bearing
             const bearing = calculateBearing(currentPos.lat, currentPos.lng, destPos.lat, destPos.lng);
             navArrow.style.transform = `translate(-50%, -50%) rotate(${bearing}deg)`;
 
@@ -288,9 +318,8 @@
             }
         }
 
-        // --- 🚨 HAZARD DETECTION (Walk Only) ---
         async function detectFrame() {
-            if (travelMode !== "WALK") return; // Stop AI loop if vehicle
+            if (userData.mode !== "WALK") return;
             if (!isModelLoaded || video.paused) { requestAnimationFrame(detectFrame); return; }
             
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -305,7 +334,7 @@
 
         function checkForHazards(predictions) {
             const dangerClasses = ['car', 'truck', 'bus', 'motorcycle'];
-            const bottomHalf = canvas.height * 0.6; // Check path
+            const bottomHalf = canvas.height * 0.6;
             
             for (let p of predictions) {
                 if (dangerClasses.includes(p.class) && p.score > 0.6) {
@@ -349,29 +378,6 @@
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
         function deg2rad(deg) { return deg * (Math.PI/180) }
-
-        // --- VOICE ENGINE ---
-        function initVoiceEngine() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if(SpeechRecognition) {
-                recognition = new SpeechRecognition();
-                recognition.continuous = false; recognition.lang = 'en-US';
-                recognition.onstart = () => { isMicActive = true; micBtn.classList.add('listening'); speak("Listening..."); };
-                recognition.onresult = (e) => {
-                    const cmd = e.results[0][0].transcript.toLowerCase();
-                    if(document.getElementById('screen-destination').classList.contains('active-screen')) {
-                         // If on destination screen, treat input as destination
-                         document.getElementById('input-dest').value = cmd;
-                         speak("Destination set to " + cmd);
-                    } else {
-                        speak("You said: " + cmd);
-                    }
-                };
-                recognition.onerror = () => { isMicActive = false; micBtn.classList.remove('listening'); };
-                recognition.onend = () => { isMicActive = false; micBtn.classList.remove('listening'); };
-            }
-        }
-        function toggleMic() { if(recognition) isMicActive ? recognition.stop() : recognition.start(); }
 
     </script>
 </body>
