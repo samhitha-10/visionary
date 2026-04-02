@@ -89,4 +89,46 @@ function drawPredictions(predictions) {
 
         // Draw Text
         ctx.fillStyle = '#000000';
-        ctx.fillText(`${
+        ctx.fillText(`${label} ${score}`, x + 5, y + 5);
+    });
+}
+
+// 5. Voice Output (Web Speech API)
+let lastSpokenTime = 0;
+
+function handleVoice(predictions) {
+    const now = Date.now();
+    // Only speak every 3 seconds to avoid annoying the user
+    if (now - lastSpokenTime < 3000) return;
+
+    for (let prediction of predictions) {
+        const label = prediction.class;
+        // Only speak if confidence is high (> 70%)
+        if (prediction.score > 0.7) {
+            if (label === 'person') {
+                speak("Person ahead");
+                lastSpokenTime = now;
+                break; 
+            } else if (label === 'cell phone') {
+                speak("Phone detected");
+                lastSpokenTime = now;
+                break;
+            } else if (label === 'chair') {
+                speak("Chair detected");
+                lastSpokenTime = now;
+                break;
+            }
+        }
+    }
+}
+
+function speak(text) {
+    // Use the browser's built-in text-to-speech
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+}
+
+// Start everything
+setupCamera().then(() => {
+    loadModel();
+});
