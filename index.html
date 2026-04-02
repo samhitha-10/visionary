@@ -5,46 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EyeGuide - Full Assistant</title>
     <style>
-        body { margin: 0; padding: 0; background: #000; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
+        body { margin: 0; padding: 0; background: #222; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
         
         /* --- SCREEN MANAGEMENT --- */
-        .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center; }
+        .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center; position: relative; }
         .active-screen { display: flex; }
         
         /* --- BUTTONS & INPUTS --- */
-        button { 
-            padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; 
-            cursor: pointer; font-weight: bold; transition: 0.2s; width: 80%; max-width: 300px;
-        }
+        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; width: 80%; max-width: 300px; }
         .btn-primary { background: #0f0; color: black; }
         .btn-primary:hover { transform: scale(1.05); background: #00cc00; }
+        .btn-vehicle { background: #00aaff; color: white; }
         
-        input { 
-            padding: 15px; font-size: 18px; margin: 10px; border-radius: 8px; border: none; width: 80%; max-width: 300px; text-align: center;
-        }
+        input { padding: 15px; font-size: 18px; margin: 10px; border-radius: 8px; border: none; width: 80%; max-width: 300px; text-align: center; }
 
         /* --- MAIN APP UI --- */
-        #app-screen { justify-content: flex-start; padding: 0; }
-        #webcam { display: none; }
-        #output { width: 100%; height: 100%; object-fit: cover; }
+        #screen-app { justify-content: flex-start; padding: 0; overflow: hidden; background: #000; }
         
+        #webcam { display: none; }
+        
+        /* The Canvas is for the Camera Feed */
+        #output { 
+            display: none; 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            object-fit: cover; 
+            z-index: 1; /* Layer 1 */
+        }
+
+        /* The Map View (Google Maps) */
+        #map-view {
+            display: none;
+            width: 100%; height: 100%;
+            border: 0;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1; /* Layer 1 (Replaces camera when driving) */
+        }
+        
+        /* HUD - Always on top */
         #hud {
             position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
-            box-sizing: border-box; display: flex; justify-content: space-between; background: rgba(0,0,0,0.5);
+            box-sizing: border-box; display: flex; justify-content: space-between; 
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            z-index: 10; /* Layer 10 (Top) */
         }
-        .hud-box { background: rgba(0,255,0,0.2); border: 2px solid #0f0; padding: 10px; border-radius: 5px; }
+        .hud-box { background: rgba(0,255,0,0.2); border: 2px solid #0f0; padding: 10px; border-radius: 5px; text-shadow: 1px 1px 2px black; }
         
         /* --- TAXI OPTIONS --- */
-        .taxi-option {
-            background: #222; border: 1px solid #444; padding: 20px; margin: 10px; width: 80%; cursor: pointer; border-radius: 10px; display: flex; justify-content: space-between;
-        }
-        .taxi-option:hover { background: #333; border-color: #0f0; }
+        .taxi-option { background: #333; border: 1px solid #555; padding: 20px; margin: 10px; width: 80%; cursor: pointer; border-radius: 10px; display: flex; justify-content: space-between; }
+        .taxi-option:hover { background: #444; border-color: #00aaff; }
 
         /* --- EMERGENCY OVERLAY --- */
-        #danger-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.6);
-            display: none; align-items: center; justify-content: center; z-index: 100;
-        }
+        #danger-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
         #danger-text { font-size: 40px; font-weight: bold; color: white; text-shadow: 0 0 10px red; text-align: center; }
 
     </style>
@@ -57,66 +71,64 @@
     <!-- 1. WELCOME SCREEN -->
     <div id="screen-welcome" class="screen active-screen">
         <h1>EYE GUIDE</h1>
-        <p>Your intelligent travel assistant.</p>
+        <p>Smart Navigation & Safety.</p>
         <button class="btn-primary" onclick="startApp()">START SETUP</button>
     </div>
 
     <!-- 2. PROFILE SCREEN -->
     <div id="screen-profile" class="screen">
         <h2>Profile Setup</h2>
-        <p>Please tell me your name.</p>
-        <input type="text" id="input-name" placeholder="Your Name">
-        <p>Emergency Contact Number.</p>
-        <input type="text" id="input-emergency" placeholder="1234567890">
+        <p>Your Name</p>
+        <input type="text" id="input-name" placeholder="Name">
+        <p>Emergency Contact</p>
+        <input type="text" id="input-emergency" placeholder="Number">
         <button class="btn-primary" onclick="saveProfile()">NEXT</button>
     </div>
 
     <!-- 3. PERMISSIONS SCREEN -->
     <div id="screen-permissions" class="screen">
         <h2>Permissions</h2>
-        <p>We need access to Camera and Location to guide you.</p>
-        <button class="btn-primary" onclick="requestPermissions()">ENABLE CAMERA & GPS</button>
+        <p>Camera for Safety, GPS for Navigation.</p>
+        <button class="btn-primary" onclick="requestPermissions()">ENABLE ACCESS</button>
     </div>
 
     <!-- 4. DESTINATION SCREEN -->
     <div id="screen-destination" class="screen">
-        <h2>Where to?</h2>
-        <p>Speak or type your destination.</p>
-        <input type="text" id="input-dest" placeholder="e.g. Central Park">
+        <h2>Destination</h2>
+        <p>Where are you going?</p>
+        <input type="text" id="input-dest" placeholder="e.g. Times Square">
         <button class="btn-primary" onclick="selectMode()">SET DESTINATION</button>
     </div>
 
     <!-- 5. MODE SELECTION SCREEN -->
     <div id="screen-mode" class="screen">
         <h2>Travel Mode</h2>
-        <p>How do you want to go?</p>
         <button class="btn-primary" onclick="selectWalk()">WALK 🚶‍♂️</button>
-        <button class="btn-primary" style="background:#00aaff; color:white" onclick="selectVehicle()">VEHICLE 🚗</button>
+        <button class="btn-primary btn-vehicle" onclick="selectVehicle()">VEHICLE 🚗</button>
     </div>
 
     <!-- 6. TAXI BOOKING SCREEN -->
     <div id="screen-taxi" class="screen">
         <h2>Book a Ride</h2>
-        <p>Select your preferred service:</p>
-        
-        <div class="taxi-option" onclick="bookRide('Uber')">
-            <span>Uber X</span>
-            <span>$12.00</span>
+        <div class="taxi-option" onclick="bookRide('Uber', 'Uber X', '$15.00')">
+            <span>Uber X</span><span>$15.00</span>
         </div>
-        <div class="taxi-option" onclick="bookRide('Ola')">
-            <span>Ola Mini</span>
-            <span>$10.50</span>
+        <div class="taxi-option" onclick="bookRide('Ola', 'Ola Mini', '$12.50')">
+            <span>Ola Mini</span><span>$12.50</span>
         </div>
-        <div class="taxi-option" onclick="bookRide('Own Car')">
-            <span>My Car</span>
-            <span>Free</span>
+        <div class="taxi-option" onclick="bookRide('Own', 'My Car', 'Free')">
+            <span>My Car</span><span>Free</span>
         </div>
     </div>
 
-    <!-- 7. MAIN APP SCREEN (Camera) -->
-    <div id="screen-app" class="screen" id="app-screen">
+    <!-- 7. MAIN APP SCREEN -->
+    <div id="screen-app" class="screen">
+        <!-- Camera Feed (Used for Walking) -->
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output"></canvas>
+        
+        <!-- Google Maps Feed (Used for Vehicle) -->
+        <iframe id="map-view" src="" allowfullscreen></iframe>
         
         <!-- Heads Up Display -->
         <div id="hud">
@@ -126,27 +138,27 @@
 
         <!-- Emergency Overlay -->
         <div id="danger-overlay">
-            <div id="danger-text">WARNING!<br>OBSTACLE AHEAD</div>
+            <div id="danger-text">WARNING!<br>OBSTACLE</div>
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- STATE VARIABLES ---
+        // --- STATE ---
         let userProfile = { name: "", emergency: "" };
         let destination = "";
-        let travelMode = "WALK"; // or VEHICLE
+        let travelMode = "WALK"; // Default
         let model = undefined;
         let isModelLoaded = false;
         let isEmergency = false;
         
-        // Elements
-        const screens = document.querySelectorAll('.screen');
+        // --- ELEMENTS ---
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('output');
+        const mapFrame = document.getElementById('map-view');
         const ctx = canvas.getContext('2d');
+        const screens = document.querySelectorAll('.screen');
 
-        // --- NAVIGATION FUNCTIONS ---
+        // --- NAVIGATION ---
         function showScreen(id) {
             screens.forEach(s => s.classList.remove('active-screen'));
             document.getElementById(id).classList.add('active-screen');
@@ -161,179 +173,21 @@
             }
         }
 
-        // --- STEP 1: WELCOME ---
+        // --- FLOWS ---
         function startApp() {
-            speak("Welcome to Eye Guide. I am your personal assistant. I will help you travel safely.");
-            setTimeout(() => {
-                speak("Please enter your name and emergency contact number to begin.");
-                showScreen('screen-profile');
-            }, 4000);
+            speak("Welcome to Eye Guide. Let's set up your profile.");
+            setTimeout(() => showScreen('screen-profile'), 2000);
         }
 
-        // --- STEP 2: PROFILE ---
         function saveProfile() {
             const name = document.getElementById('input-name').value;
             const emergency = document.getElementById('input-emergency').value;
-            
-            if (!name || !emergency) {
-                speak("Please fill in both fields.");
-                return;
-            }
+            if(!name || !emergency) return speak("Please fill all fields.");
             
             userProfile.name = name;
             userProfile.emergency = emergency;
-            speak(`Thank you, ${name}. Emergency contact saved as ${emergency}. Next, we need camera access.`);
+            speak(`Saved. Next, please enable camera and location.`);
             showScreen('screen-permissions');
         }
 
-        // --- STEP 3: PERMISSIONS ---
-        async function requestPermissions() {
-            try {
-                // Request Camera
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' }, audio: false 
-                });
-                video.srcObject = stream;
-                await new Promise(r => video.onloadedmetadata = r);
-                
-                // Request Location
-                if ("geolocation" in navigator) {
-                    navigator.geolocation.getCurrentPosition(() => {
-                        speak("Camera and Location access granted.");
-                        showScreen('screen-destination');
-                    });
-                } else {
-                    showScreen('screen-destination');
-                }
-            } catch (err) {
-                speak("Camera permission denied. We cannot guide you without it.");
-                alert("Please allow camera access in your browser settings.");
-            }
-        }
-
-        // --- STEP 4: DESTINATION ---
-        function selectMode() {
-            destination = document.getElementById('input-dest').value;
-            if (!destination) {
-                speak("Please enter a destination first.");
-                return;
-            }
-            speak(`Destination set to ${destination}. Do you want to walk or take a vehicle?`);
-            showScreen('screen-mode');
-        }
-
-        // --- STEP 5: MODE SELECTION ---
-        function selectWalk() {
-            travelMode = "WALK";
-            speak("Walking mode selected. I will guide you and warn of obstacles.");
-            startMainApp();
-        }
-
-        function selectVehicle() {
-            speak("Vehicle mode selected. Do you want to book a taxi or use your own car?");
-            showScreen('screen-taxi');
-        }
-
-        // --- STEP 6: TAXI BOOKING ---
-        function bookRide(service) {
-            speak(`Booking ${service} for you. Please wait.`);
-            const loadingText = document.querySelector('#screen-taxi h2');
-            loadingText.innerText = "Finding Driver...";
-            
-            // Simulate API Call
-            setTimeout(() => {
-                if (service === 'Own Car') {
-                    speak("Navigation started. Drive safely.");
-                    startMainApp();
-                } else {
-                    speak(`${service} booked! Driver Rahul is arriving in 3 minutes. A White Honda Civic.`);
-                    setTimeout(() => startMainApp(), 4000);
-                }
-            }, 2000);
-        }
-
-        // --- STEP 7: MAIN APP (AI LOOP) ---
-        async function startMainApp() {
-            showScreen('screen-app');
-            document.getElementById('hud-mode').innerText = travelMode;
-            
-            // Load Model
-            speak("System starting. Look straight ahead.");
-            model = await cocoSsd.load();
-            isModelLoaded = true;
-            
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            detectFrame();
-        }
-
-        async function detectFrame() {
-            if (!isModelLoaded || video.paused) {
-                requestAnimationFrame(detectFrame);
-                return;
-            }
-
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // If walking, we check for obstacles
-            if (travelMode === "WALK" && !isEmergency) {
-                const predictions = await model.detect(video);
-                checkForHazards(predictions);
-                drawBoxes(predictions);
-            }
-
-            requestAnimationFrame(detectFrame);
-        }
-
-        // --- HAZARD LOGIC ---
-        function checkForHazards(predictions) {
-            const dangerClasses = ['car', 'truck', 'bus', 'motorcycle', 'bicycle'];
-            const screenCenter = canvas.width / 2;
-            const bottomHalf = canvas.height * 0.7; // Check lower 30% of screen (path)
-
-            for (let p of predictions) {
-                if (dangerClasses.includes(p.class) && p.score > 0.6) {
-                    const [x, y, w, h] = p.bbox;
-                    const objectCenter = x + (w/2);
-                    
-                    // Is the object in front of us and in our path?
-                    if (Math.abs(objectCenter - screenCenter) < 100 && y > bottomHalf) {
-                        triggerHazardAlert(p.class);
-                    }
-                }
-            }
-        }
-
-        function triggerHazardAlert(objectName) {
-            isEmergency = true;
-            const overlay = document.getElementById('danger-overlay');
-            const text = document.getElementById('danger-text');
-            
-            overlay.style.display = 'flex';
-            text.innerHTML = `STOP!<br>${objectName.toUpperCase()} AHEAD`;
-            
-            speak(`Stop! A ${objectName} is coming right at you! Wait.`);
-            
-            // Clear alert after 3 seconds
-            setTimeout(() => {
-                isEmergency = false;
-                overlay.style.display = 'none';
-                speak("Path is clear. You may proceed.");
-            }, 3000);
-        }
-
-        function drawBoxes(predictions) {
-            ctx.font = '16px Arial';
-            ctx.lineWidth = 2;
-            predictions.forEach(p => {
-                const [x, y, w, h] = p.bbox;
-                ctx.strokeStyle = '#0f0';
-                ctx.strokeRect(x, y, w, h);
-                ctx.fillStyle = '#0f0';
-                ctx.fillText(p.class, x, y - 5);
-            });
-        }
-    </script>
-</body>
-</html>
+        async
