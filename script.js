@@ -1,3 +1,5 @@
+// --- DIAGNOSTIC VERSION ---
+
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('output');
 const ctx = canvas.getContext('2d');
@@ -10,37 +12,47 @@ let isModelLoaded = false;
 
 // 1. Setup the Camera
 async function setupCamera() {
+    alert("Step 1: Trying to access Camera...");
     statusDiv.innerText = "Connecting Camera...";
     statusDiv.style.borderColor = "yellow";
 
     try {
         let stream;
-        // Try Back -> Front -> Any
+        // Try Back Camera
         try {
             stream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: 'environment' },
                 audio: false
             });
+            alert("Step 1a: Back Camera found!");
         } catch (e) {
+            alert("Step 1b: Back camera failed. Trying Front...");
+            // Try Front Camera
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user' },
                     audio: false
                 });
+                alert("Step 1c: Front Camera found!");
             } catch (e2) {
+                alert("Step 1d: Front camera failed. Trying Default...");
+                // Try Default
                 stream = await navigator.mediaDevices.getUserMedia({ video: true });
             }
         }
 
         video.srcObject = stream;
+        
+        // Wait for video to be ready
         return new Promise((resolve) => {
             video.onloadedmetadata = () => {
+                alert("Step 1e: Video is ready!");
                 resolve(video);
             };
         });
 
     } catch (err) {
-        alert("Camera Error: " + err.message);
+        alert("CRITICAL ERROR: Camera blocked or missing.\n\nReason: " + err.message);
         console.error(err);
         throw err;
     }
@@ -48,20 +60,24 @@ async function setupCamera() {
 
 // 2. Load AI Model
 async function loadModel() {
+    alert("Step 2: Loading AI Model (this might take 10 seconds)...");
     statusDiv.innerText = "Loading AI Model...";
     try {
         model = await cocoSsd.load();
         isModelLoaded = true;
+        alert("Step 2b: AI Model Loaded Successfully!");
+        
         statusDiv.innerText = "System Active";
         statusDiv.style.borderColor = "#0f0";
         
-        // Hide start screen, show canvas
+        // Hide Start Screen
         startScreen.style.display = 'none';
         canvas.style.display = 'block';
         
         speak("Eye Guide Ready");
         detectFrame();
     } catch (err) {
+        alert("ERROR: Could not load AI Model.\n\nReason: " + err.message + "\n\nIf this says 'Failed to fetch', your network might be blocking the download.");
         console.error(err);
         statusDiv.innerText = "AI Model Error";
     }
@@ -76,9 +92,14 @@ async function detectFrame() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const predictions = await model.detect(video);
-    drawPredictions(predictions);
-    handleVoice(predictions);
+    
+    try {
+        const predictions = await model.detect(video);
+        drawPredictions(predictions);
+        handleVoice(predictions);
+    } catch (e) {
+        // Silent fail in loop to avoid spamming alerts
+    }
     requestAnimationFrame(detectFrame);
 }
 
@@ -124,9 +145,9 @@ function speak(text) {
     }
 }
 
-// --- NEW: START BUTTON LOGIC ---
+// --- CLICK HANDLER ---
 startBtn.addEventListener('click', () => {
-    console.log("Button clicked, starting...");
+    alert("Button Clicked! Starting sequence...");
     setupCamera().then(() => {
         loadModel();
     });
