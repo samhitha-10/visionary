@@ -8,27 +8,47 @@
         body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: sans-serif; }
         #container { position: relative; width: 100vw; height: 100vh; }
         
-        /* The video is hidden, we draw it on the canvas instead */
         #webcam { display: none; } 
-        
-        /* Canvas shows the video + AI boxes */
         #output { 
             width: 100%; 
             height: 100%; 
             object-fit: cover; 
+            display: none; /* Hidden until started */
         }
+
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #111;
+            z-index: 100;
+        }
+
+        #start-btn {
+            padding: 20px 40px;
+            font-size: 24px;
+            background: #0f0;
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 20px #0f0;
+            transition: transform 0.2s;
+        }
+        #start-btn:hover { transform: scale(1.05); }
 
         #ui-layer {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
+            top: 20px; left: 20px; right: 20px;
             display: flex;
             justify-content: space-between;
-            pointer-events: none; /* Let clicks pass through */
+            pointer-events: none;
             z-index: 10;
         }
-
         .box {
             background: rgba(0, 0, 0, 0.6);
             border: 2px solid #0f0;
@@ -37,42 +57,29 @@
             border-radius: 10px;
             font-weight: bold;
             font-size: 18px;
-            text-shadow: 0 0 5px #0f0;
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 24px;
-            text-align: center;
         }
     </style>
-    <!-- Load TensorFlow.js and the COCO-SSD Model from the internet -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 </head>
 <body>
 
     <div id="container">
-        <!-- Hidden video element capturing the camera -->
-        <video id="webcam" autoplay playsinline muted></video>
-        
-        <!-- Canvas where we draw the video and the AI boxes -->
-        <canvas id="output"></canvas>
-
-        <!-- UI Overlay -->
-        <div id="ui-layer">
-            <div class="box">EYE GUIDE WEB</div>
-            <div class="box" id="status">Loading AI...</div>
+        <!-- Start Screen Overlay -->
+        <div id="start-screen">
+            <button id="start-btn">📷 START EYE GUIDE</button>
+            <p style="color:white; margin-top:20px;">Click button to allow camera access</p>
         </div>
 
-        <div id="loading">Starting Camera & AI Model...<br>Please allow camera access.</div>
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output"></canvas>
+
+        <div id="ui-layer">
+            <div class="box">EYE GUIDE WEB</div>
+            <div class="box" id="status">Standby</div>
+        </div>
     </div>
 
-    <!-- Link to our logic file -->
     <script src="script.js"></script>
 </body>
 </html>
