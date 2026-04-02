@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EyeGuide - AI Assistant</title>
+    <style>
+        body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        #container { position: relative; width: 100vw; height: 100vh; }
+        
+        /* The video is hidden, we draw it on the canvas instead */
+        #webcam { display: none; } 
+        
+        /* Canvas shows the video + AI boxes */
+        #output { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none; /* Let clicks pass through */
+            z-index: 10;
+        }
+
+        .box {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 0 0 5px #0f0;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            text-align: center;
+        }
+    </style>
+    <!-- Load TensorFlow.js and the COCO-SSD Model from the internet -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+</head>
+<body>
+
+    <div id="container">
+        <!-- Hidden video element capturing the camera -->
+        <video id="webcam" autoplay playsinline muted></video>
+        
+        <!-- Canvas where we draw the video and the AI boxes -->
+        <canvas id="output"></canvas>
+
+        <!-- UI Overlay -->
+        <div id="ui-layer">
+            <div class="box">EYE GUIDE WEB</div>
+            <div class="box" id="status">Loading AI...</div>
+        </div>
+
+        <div id="loading">Starting Camera & AI Model...<br>Please allow camera access.</div>
+    </div>
+
+    <!-- Link to our logic file -->
+    <script src="script.js"></script>
+</body>
+</html>
