@@ -3,61 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EyeGuide - Full Assistant</title>
+    <title>EyeGuide - Voice Assistant</title>
     <style>
         body { margin: 0; padding: 0; background: #222; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
         
-        /* --- SCREEN MANAGEMENT --- */
+        /* --- SCREENS --- */
         .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center; position: relative; }
         .active-screen { display: flex; }
         
-        /* --- BUTTONS & INPUTS --- */
-        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; width: 80%; max-width: 300px; }
+        /* --- CONTROLS --- */
+        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; max-width: 300px; }
         .btn-primary { background: #0f0; color: black; }
-        .btn-primary:hover { transform: scale(1.05); background: #00cc00; }
         .btn-vehicle { background: #00aaff; color: white; }
-        
         input { padding: 15px; font-size: 18px; margin: 10px; border-radius: 8px; border: none; width: 80%; max-width: 300px; text-align: center; }
 
-        /* --- MAIN APP UI --- */
+        /* --- APP VIEW --- */
         #screen-app { justify-content: flex-start; padding: 0; overflow: hidden; background: #000; }
-        
         #webcam { display: none; }
+        #output { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        #map-view { display: none; width: 100%; height: 100%; border: 0; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* The Canvas is for the Camera Feed */
-        #output { 
-            display: none; 
-            position: absolute; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            object-fit: cover; 
-            z-index: 1; /* Layer 1 */
-        }
-
-        /* The Map View (Google Maps) */
-        #map-view {
-            display: none;
-            width: 100%; height: 100%;
-            border: 0;
-            position: absolute;
-            top: 0; left: 0;
-            z-index: 1; /* Layer 1 (Replaces camera when driving) */
-        }
-        
-        /* HUD - Always on top */
+        /* --- HUD & MIC BUTTON --- */
         #hud {
             position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
-            box-sizing: border-box; display: flex; justify-content: space-between; 
+            box-sizing: border-box; display: flex; justify-content: space-between; align-items: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            z-index: 10; /* Layer 10 (Top) */
+            z-index: 10;
         }
-        .hud-box { background: rgba(0,255,0,0.2); border: 2px solid #0f0; padding: 10px; border-radius: 5px; text-shadow: 1px 1px 2px black; }
+        .hud-box { background: rgba(0,255,0,0.2); border: 2px solid #0f0; padding: 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 2px black; }
         
-        /* --- TAXI OPTIONS --- */
+        /* NEW: MIC BUTTON STYLE */
+        #mic-btn {
+            background: rgba(0, 255, 0, 0.3);
+            border: 2px solid #0f0;
+            color: #0f0;
+            font-size: 20px;
+            padding: 0;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+        /* Animation when listening */
+        #mic-btn.listening {
+            background: red;
+            border-color: red;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+
+        /* --- OTHERS --- */
         .taxi-option { background: #333; border: 1px solid #555; padding: 20px; margin: 10px; width: 80%; cursor: pointer; border-radius: 10px; display: flex; justify-content: space-between; }
         .taxi-option:hover { background: #444; border-color: #00aaff; }
-
-        /* --- EMERGENCY OVERLAY --- */
         #danger-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
         #danger-text { font-size: 40px; font-weight: bold; color: white; text-shadow: 0 0 10px red; text-align: center; }
 
@@ -68,95 +74,90 @@
 </head>
 <body>
 
-    <!-- 1. WELCOME SCREEN -->
+    <!-- 1. WELCOME -->
     <div id="screen-welcome" class="screen active-screen">
         <h1>EYE GUIDE</h1>
-        <p>Smart Navigation & Safety.</p>
-        <button class="btn-primary" onclick="startApp()">START SETUP</button>
+        <p>Voice Controlled Assistant.</p>
+        <button class="btn-primary" onclick="startApp()">START</button>
     </div>
 
-    <!-- 2. PROFILE SCREEN -->
+    <!-- 2. PROFILE -->
     <div id="screen-profile" class="screen">
         <h2>Profile Setup</h2>
-        <p>Your Name</p>
         <input type="text" id="input-name" placeholder="Name">
-        <p>Emergency Contact</p>
-        <input type="text" id="input-emergency" placeholder="Number">
+        <input type="text" id="input-emergency" placeholder="Emergency Number">
         <button class="btn-primary" onclick="saveProfile()">NEXT</button>
     </div>
 
-    <!-- 3. PERMISSIONS SCREEN -->
+    <!-- 3. PERMISSIONS -->
     <div id="screen-permissions" class="screen">
         <h2>Permissions</h2>
-        <p>Camera for Safety, GPS for Navigation.</p>
-        <button class="btn-primary" onclick="requestPermissions()">ENABLE ACCESS</button>
+        <p>Allow Camera & Location</p>
+        <button class="btn-primary" onclick="requestPermissions()">ENABLE</button>
     </div>
 
-    <!-- 4. DESTINATION SCREEN -->
+    <!-- 4. DESTINATION (Voice Input Preferred) -->
     <div id="screen-destination" class="screen">
-        <h2>Destination</h2>
-        <p>Where are you going?</p>
-        <input type="text" id="input-dest" placeholder="e.g. Times Square">
+        <h2>Where to?</h2>
+        <p>Type or say "Go to [Place]"</p>
+        <input type="text" id="input-dest" placeholder="Destination">
         <button class="btn-primary" onclick="selectMode()">SET DESTINATION</button>
+        <button class="btn-vehicle" onclick="activateVoiceInput()">🎙️ Use Voice Input</button>
     </div>
 
-    <!-- 5. MODE SELECTION SCREEN -->
+    <!-- 5. MODE -->
     <div id="screen-mode" class="screen">
         <h2>Travel Mode</h2>
         <button class="btn-primary" onclick="selectWalk()">WALK 🚶‍♂️</button>
         <button class="btn-primary btn-vehicle" onclick="selectVehicle()">VEHICLE 🚗</button>
     </div>
 
-    <!-- 6. TAXI BOOKING SCREEN -->
+    <!-- 6. TAXI -->
     <div id="screen-taxi" class="screen">
         <h2>Book a Ride</h2>
-        <div class="taxi-option" onclick="bookRide('Uber', 'Uber X', '$15.00')">
-            <span>Uber X</span><span>$15.00</span>
-        </div>
-        <div class="taxi-option" onclick="bookRide('Ola', 'Ola Mini', '$12.50')">
-            <span>Ola Mini</span><span>$12.50</span>
-        </div>
-        <div class="taxi-option" onclick="bookRide('Own', 'My Car', 'Free')">
-            <span>My Car</span><span>Free</span>
-        </div>
+        <div class="taxi-option" onclick="bookRide('Uber', 'Uber X', '$15.00')"><span>Uber X</span><span>$15.00</span></div>
+        <div class="taxi-option" onclick="bookRide('Ola', 'Ola Mini', '$12.50')"><span>Ola Mini</span><span>$12.50</span></div>
+        <div class="taxi-option" onclick="bookRide('Own', 'My Car', 'Free')"><span>My Car</span><span>Free</span></div>
     </div>
 
-    <!-- 7. MAIN APP SCREEN -->
+    <!-- 7. APP SCREEN -->
     <div id="screen-app" class="screen">
-        <!-- Camera Feed (Used for Walking) -->
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output"></canvas>
-        
-        <!-- Google Maps Feed (Used for Vehicle) -->
         <iframe id="map-view" src="" allowfullscreen></iframe>
         
-        <!-- Heads Up Display -->
         <div id="hud">
             <div class="hud-box">MODE: <span id="hud-mode">WALKING</span></div>
+            
+            <!-- THE MICROPHONE BUTTON -->
+            <button id="mic-btn" onclick="toggleMic()">🎙️</button>
+            
             <div class="hud-box">STATUS: <span id="hud-status">ACTIVE</span></div>
         </div>
 
-        <!-- Emergency Overlay -->
-        <div id="danger-overlay">
-            <div id="danger-text">WARNING!<br>OBSTACLE</div>
-        </div>
+        <div id="danger-overlay"><div id="danger-text">WARNING!<br>OBSTACLE</div></div>
     </div>
 
     <script>
         // --- STATE ---
         let userProfile = { name: "", emergency: "" };
         let destination = "";
-        let travelMode = "WALK"; // Default
+        let travelMode = "WALK";
         let model = undefined;
         let isModelLoaded = false;
         let isEmergency = false;
         
+        // --- VOICE INPUT STATE ---
+        let recognition;
+        let isMicActive = false;
+
         // --- ELEMENTS ---
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('output');
         const mapFrame = document.getElementById('map-view');
         const ctx = canvas.getContext('2d');
         const screens = document.querySelectorAll('.screen');
+        const micBtn = document.getElementById('mic-btn');
 
         // --- NAVIGATION ---
         function showScreen(id) {
@@ -173,21 +174,196 @@
             }
         }
 
-        // --- FLOWS ---
+        // --- APP FLOWS ---
         function startApp() {
-            speak("Welcome to Eye Guide. Let's set up your profile.");
+            speak("Welcome. Setup your profile.");
             setTimeout(() => showScreen('screen-profile'), 2000);
         }
 
         function saveProfile() {
-            const name = document.getElementById('input-name').value;
-            const emergency = document.getElementById('input-emergency').value;
-            if(!name || !emergency) return speak("Please fill all fields.");
-            
-            userProfile.name = name;
-            userProfile.emergency = emergency;
-            speak(`Saved. Next, please enable camera and location.`);
+            userProfile.name = document.getElementById('input-name').value;
+            userProfile.emergency = document.getElementById('input-emergency').value;
+            if(!userProfile.name) return speak("Please enter name.");
+            speak("Saved. Enable permissions.");
             showScreen('screen-permissions');
         }
 
-        async
+        async function requestPermissions() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                video.srcObject = stream;
+                await new Promise(r => video.onloadedmetadata = r);
+                speak("Access granted. Enter destination.");
+                showScreen('screen-destination');
+                // Init Voice Engine here so it's ready
+                initVoiceEngine();
+            } catch (err) {
+                speak("Camera denied.");
+            }
+        }
+
+        function selectMode() {
+            destination = document.getElementById('input-dest').value || "Destination";
+            speak("Walk or Vehicle?");
+            showScreen('screen-mode');
+        }
+
+        function selectWalk() {
+            travelMode = "WALK";
+            speak("Walking mode.");
+            startMainApp();
+        }
+
+        function selectVehicle() {
+            speak("Choose a taxi.");
+            showScreen('screen-taxi');
+        }
+
+        function bookRide(service, name, price) {
+            travelMode = "VEHICLE";
+            speak(`Booking ${name}. Please wait.`);
+            document.querySelector('#screen-taxi h2').innerText = "Finding Driver...";
+            setTimeout(() => {
+                speak(`${name} booked! Driver arriving.`);
+                setTimeout(() => startMainApp(), 2000);
+            }, 1500);
+        }
+
+        function startMainApp() {
+            showScreen('screen-app');
+            document.getElementById('hud-mode').innerText = travelMode;
+
+            if (travelMode === "WALK") {
+                canvas.style.display = "block";
+                mapFrame.style.display = "none";
+                speak("System starting.");
+                cocoSsd.load().then(m => { model = m; isModelLoaded = true; canvas.width = video.videoWidth; canvas.height = video.videoHeight; detectFrame(); });
+            } else {
+                canvas.style.display = "none";
+                mapFrame.style.display = "block";
+                const mapUrl = `https://maps.google.com/maps?q=${destination}&t=&z=13&ie=UTF8&iwloc=&output=embed`;
+                mapFrame.src = mapUrl;
+                speak("Navigation active. Tap microphone for commands.");
+            }
+        }
+
+        async function detectFrame() {
+            if (travelMode !== "WALK") return;
+            if (!isModelLoaded || video.paused) { requestAnimationFrame(detectFrame); return; }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            if (!isEmergency) {
+                const predictions = await model.detect(video);
+                checkForHazards(predictions);
+                drawBoxes(predictions);
+            }
+            requestAnimationFrame(detectFrame);
+        }
+
+        function checkForHazards(predictions) {
+            const dangerClasses = ['car', 'truck', 'bus', 'motorcycle'];
+            const bottomHalf = canvas.height * 0.6;
+            for (let p of predictions) {
+                if (dangerClasses.includes(p.class) && p.score > 0.6) {
+                    const [x, y, w, h] = p.bbox;
+                    if (y > bottomHalf) triggerHazardAlert(p.class);
+                }
+            }
+        }
+
+        function triggerHazardAlert(name) {
+            isEmergency = true;
+            document.getElementById('danger-overlay').style.display = 'flex';
+            document.getElementById('danger-text').innerText = `STOP!\n${name.toUpperCase()}`;
+            speak(`Stop! ${name} ahead!`);
+            setTimeout(() => { isEmergency = false; document.getElementById('danger-overlay').style.display = 'none'; }, 3000);
+        }
+
+        function drawBoxes(predictions) {
+            ctx.font = '16px Arial'; ctx.lineWidth = 2;
+            predictions.forEach(p => {
+                const [x, y, w, h] = p.bbox;
+                ctx.strokeStyle = '#0f0'; ctx.strokeRect(x, y, w, h);
+                ctx.fillStyle = '#0f0'; ctx.fillText(p.class, x, y - 5);
+            });
+        }
+
+        // --- ✨ NEW: VOICE INPUT ENGINE ✨ ---
+        function initVoiceEngine() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.lang = 'en-US';
+                recognition.interimResults = false;
+
+                recognition.onstart = () => {
+                    isMicActive = true;
+                    micBtn.classList.add('listening');
+                    speak("Listening...");
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript.toLowerCase();
+                    console.log("Heard: " + transcript);
+                    processVoiceCommand(transcript);
+                };
+
+                recognition.onerror = (event) => {
+                    speak("Sorry, didn't catch that.");
+                    isMicActive = false;
+                    micBtn.classList.remove('listening');
+                };
+
+                recognition.onend = () => {
+                    isMicActive = false;
+                    micBtn.classList.remove('listening');
+                };
+            } else {
+                alert("Voice not supported in this browser. Use Chrome.");
+            }
+        }
+
+        function toggleMic() {
+            if (!recognition) { alert("Voice engine not ready yet."); return; }
+            if (isMicActive) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function activateVoiceInput() {
+            if(!recognition) initVoiceEngine();
+            toggleMic();
+        }
+
+        function processVoiceCommand(cmd) {
+            speak("You said: " + cmd); // Feedback
+
+            if (cmd.includes("help")) {
+                speak("You can say: Book taxi, Go to [place], or Emergency.");
+            }
+            else if (cmd.includes("book") || cmd.includes("taxi") || cmd.includes("uber")) {
+                speak("Opening taxi options.");
+                showScreen('screen-taxi');
+            }
+            else if (cmd.includes("go to") || cmd.includes("navigate")) {
+                let dest = cmd.replace("go to", "").replace("navigate to", "").trim();
+                if (dest) {
+                    destination = dest;
+                    speak("Navigating to " + dest);
+                    document.getElementById('hud-status').innerText = "TO: " + dest.toUpperCase();
+                }
+            }
+            else if (cmd.includes("emergency") || cmd.includes("help me")) {
+                speak("Emergency mode calling " + userProfile.emergency);
+                alert("EMERGENCY CALLED");
+            }
+            else {
+                speak("I didn't understand. Try saying 'Book taxi'.");
+            }
+        }
+
+    </script>
+</body>
+</html>
