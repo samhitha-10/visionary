@@ -3,60 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EyeGuide - AI Assistant</title>
+    <title>EyeGuide - AI Nav</title>
     <style>
         body { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: sans-serif; }
         #container { position: relative; width: 100vw; height: 100vh; }
         
         #webcam { display: none; } 
-        #output { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            display: none; /* Hidden until started */
-        }
+        #output { width: 100%; height: 100%; object-fit: cover; display: none; }
 
         #start-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: #111;
-            z-index: 100;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: #111; z-index: 100;
+        }
+        #start-btn {
+            padding: 20px 40px; font-size: 24px; background: #0f0; color: #000; border: none;
+            border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 0 20px #0f0;
         }
 
-        #start-btn {
-            padding: 20px 40px;
-            font-size: 24px;
-            background: #0f0;
-            color: #000;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 0 20px #0f0;
-            transition: transform 0.2s;
+        /* Navigation HUD */
+        #nav-ui {
+            position: absolute; bottom: 20px; left: 20px; right: 20px;
+            display: none; /* Hidden until started */
+            flex-direction: row; gap: 10px; pointer-events: auto; z-index: 50;
         }
-        #start-btn:hover { transform: scale(1.05); }
+        .nav-btn {
+            flex: 1; padding: 15px; font-size: 16px; font-weight: bold;
+            background: rgba(0, 50, 255, 0.8); color: white; border: 2px solid #00f;
+            border-radius: 8px; cursor: pointer;
+        }
+        .nav-btn.danger { background: rgba(255, 0, 0, 0.8); border-color: #f00; }
 
         #ui-layer {
-            position: absolute;
-            top: 20px; left: 20px; right: 20px;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-            z-index: 10;
+            position: absolute; top: 20px; left: 20px; right: 20px;
+            display: flex; justify-content: space-between; pointer-events: none; z-index: 10;
         }
         .box {
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid #0f0;
-            color: #0f0;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-weight: bold;
-            font-size: 18px;
+            background: rgba(0, 0, 0, 0.6); border: 2px solid #0f0; color: #0f0;
+            padding: 10px 20px; border-radius: 10px; font-weight: bold; font-size: 18px;
+        }
+        #nav-direction {
+            color: yellow; border-color: yellow;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -65,18 +52,27 @@
 <body>
 
     <div id="container">
-        <!-- Start Screen Overlay -->
         <div id="start-screen">
-            <button id="start-btn">📷 START EYE GUIDE</button>
-            <p style="color:white; margin-top:20px;">Click button to allow camera access</p>
+            <button id="start-btn">🚀 START SYSTEM</button>
+            <p style="color:white; margin-top:20px;">Click to enable Camera & GPS</p>
         </div>
 
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output"></canvas>
 
         <div id="ui-layer">
-            <div class="box">EYE GUIDE WEB</div>
+            <div class="box">EYE GUIDE NAV</div>
             <div class="box" id="status">Standby</div>
+        </div>
+
+        <!-- Navigation Controls -->
+        <div id="nav-ui">
+            <button class="nav-btn" onclick="setDestination()">📍 Set Destination</button>
+        </div>
+        
+        <!-- Direction Display -->
+        <div id="direction-overlay" style="position: absolute; bottom: 100px; width: 100%; text-align: center; display:none;">
+            <h1 id="nav-text" style="color: yellow; background: rgba(0,0,0,0.7); display: inline-block; padding: 10px;">Heading North</h1>
         </div>
     </div>
 
