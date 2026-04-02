@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EyeGuide - AR Navigation</title>
+    <title>EyeGuide - AI Guide</title>
     <style>
         body { margin: 0; padding: 0; background: #222; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
         
@@ -12,8 +12,9 @@
         .active-screen { display: flex; }
         
         /* --- CONTROLS --- */
-        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; max-width: 300px; }
+        button { padding: 15px 30px; font-size: 18px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; max-width: 300px; transition: 0.2s; }
         .btn-primary { background: #0f0; color: black; }
+        .btn-primary:hover { transform: scale(1.05); }
         .btn-vehicle { background: #00aaff; color: white; }
         input { padding: 15px; font-size: 18px; margin: 10px; border-radius: 8px; border: none; width: 80%; max-width: 300px; text-align: center; }
 
@@ -45,20 +46,16 @@
         #mic-btn.listening { background: red; border-color: red; color: white; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
 
-        /* --- NAVIGATION ARROW (CENTER) --- */
+        /* --- NAVIGATION ARROW --- */
         #nav-arrow {
             position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
             font-size: 100px; color: rgba(255, 204, 0, 0.8); text-shadow: 0 0 10px black;
             z-index: 15; display: none; pointer-events: none; transition: transform 0.2s ease-out;
         }
 
-        /* --- DANGER --- */
+        /* --- DANGER ALERT --- */
         #danger-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
         #danger-text { font-size: 40px; font-weight: bold; color: white; text-shadow: 0 0 10px red; text-align: center; }
-
-        /* --- TAXI --- */
-        .taxi-option { background: #333; border: 1px solid #555; padding: 20px; margin: 10px; width: 80%; cursor: pointer; border-radius: 10px; display: flex; justify-content: space-between; }
-        .taxi-option:hover { background: #444; border-color: #00aaff; }
     </style>
     <!-- Load TensorFlow -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -69,91 +66,89 @@
     <!-- 1. WELCOME -->
     <div id="screen-welcome" class="screen active-screen">
         <h1>EYE GUIDE</h1>
-        <p>AR Navigation & Safety.</p>
+        <p>Your Safety & Navigation Companion.</p>
         <button class="btn-primary" onclick="startApp()">START</button>
     </div>
 
-    <!-- 2. PROFILE -->
-    <div id="screen-profile" class="screen">
-        <h2>Profile Setup</h2>
-        <input type="text" id="input-name" placeholder="Name">
-        <input type="text" id="input-emergency" placeholder="Emergency Number">
-        <button class="btn-primary" onclick="saveProfile()">NEXT</button>
+    <!-- 2. NAME SCREEN -->
+    <div id="screen-name" class="screen">
+        <h2>What is your name?</h2>
+        <input type="text" id="input-name" placeholder="Enter Name">
+        <button class="btn-primary" onclick="saveName()">NEXT</button>
     </div>
 
-    <!-- 3. PERMISSIONS -->
+    <!-- 3. PERMISSIONS SCREEN -->
     <div id="screen-permissions" class="screen">
         <h2>Permissions</h2>
-        <p>Allow Camera & Location</p>
-        <button class="btn-primary" onclick="requestPermissions()">ENABLE</button>
+        <p>Allow Camera & Location for Safety & Navigation.</p>
+        <button class="btn-primary" onclick="requestPermissions()">ENABLE ACCESS</button>
     </div>
 
-    <!-- 4. DESTINATION -->
-    <div id="screen-destination" class="screen">
-        <h2>Where to?</h2>
-        <p>Demo: Destination is set 200m North.</p>
-        <button class="btn-primary" onclick="selectMode()">START NAVIGATION</button>
-    </div>
-
-    <!-- 5. MODE -->
+    <!-- 4. MODE SELECTION SCREEN (Moved Up) -->
     <div id="screen-mode" class="screen">
-        <h2>Travel Mode</h2>
-        <button class="btn-primary" onclick="selectWalk()">WALK (AR) 🚶‍♂️</button>
-        <button class="btn-primary btn-vehicle" onclick="selectVehicle()">VEHICLE (MAP) 🚗</button>
+        <h2>Choose Travel Mode</h2>
+        <p>How are you traveling?</p>
+        <button class="btn-primary" onclick="selectMode('WALK')">🚶‍♂️ WALK</button>
+        <button class="btn-primary btn-vehicle" onclick="selectMode('VEHICLE')">🚗 VEHICLE</button>
     </div>
 
-    <!-- 6. TAXI -->
-    <div id="screen-taxi" class="screen">
-        <h2>Book a Ride</h2>
-        <div class="taxi-option" onclick="bookRide('Uber')"><span>Uber X</span><span>$15.00</span></div>
-        <div class="taxi-option" onclick="bookRide('Ola')"><span>Ola Mini</span><span>$12.50</span></div>
+    <!-- 5. DESTINATION SCREEN (Moved Down) -->
+    <div id="screen-destination" class="screen">
+        <h2>Where are you going?</h2>
+        <p>Enter your destination.</p>
+        <input type="text" id="input-dest" placeholder="e.g. Central Park">
+        <button class="btn-primary" onclick="startNavigation()">START GUIDANCE</button>
+        <button class="btn-vehicle" onclick="activateVoiceInput()">🎙️ Or Speak Destination</button>
     </div>
 
-    <!-- 7. APP SCREEN -->
+    <!-- 6. APP SCREEN (Camera & Maps) -->
     <div id="screen-app" class="screen">
         <video id="webcam" autoplay playsinline muted></video>
         <canvas id="output"></canvas>
         <iframe id="map-view" src="" allowfullscreen></iframe>
         
-        <!-- THE BIG ARROW -->
+        <!-- THE AR ARROW -->
         <div id="nav-arrow">⬆️</div>
 
         <div id="hud">
-            <div class="hud-info" id="hud-mode">MODE: WALK</div>
+            <div class="hud-info" id="hud-mode">MODE: --</div>
             <button id="mic-btn" onclick="toggleMic()">🎙️</button>
             <div class="distance-display" id="dist-display">-- m</div>
         </div>
 
-        <div id="danger-overlay"><div id="danger-text">WARNING!<br>OBSTACLE</div></div>
+        <div id="danger-overlay"><div id="danger-text">STOP!<br>HAZARD AHEAD</div></div>
     </div>
 
     <script>
         // --- STATE ---
-        let userProfile = { name: "", emergency: "" };
-        let travelMode = "WALK";
-        let model = undefined;
-        let isModelLoaded = false;
-        let isEmergency = false;
+        let userName = "";
+        let travelMode = ""; // "WALK" or "VEHICLE"
+        let destination = "";
         
         // --- NAVIGATION STATE ---
         let currentPos = { lat: 0, lng: 0 };
         let destPos = { lat: 0, lng: 0 };
         let lastNavSpeak = 0;
 
+        // --- AI & CAM ---
+        let model = undefined;
+        let isModelLoaded = false;
+        let isEmergency = false;
+        let video, canvas, ctx;
+
         // --- VOICE ---
         let recognition, isMicActive = false;
 
         // --- ELEMENTS ---
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('output');
-        const mapFrame = document.getElementById('map-view');
-        const ctx = canvas.getContext('2d');
+        video = document.getElementById('webcam');
+        canvas = document.getElementById('output');
+        ctx = canvas.getContext('2d');
         const screens = document.querySelectorAll('.screen');
         const micBtn = document.getElementById('mic-btn');
         const navArrow = document.getElementById('nav-arrow');
         const distDisplay = document.getElementById('dist-display');
 
-        // --- NAVIGATION ---
+        // --- NAVIGATION FUNCTIONS ---
         function showScreen(id) {
             screens.forEach(s => s.classList.remove('active-screen'));
             document.getElementById(id).classList.add('active-screen');
@@ -168,126 +163,124 @@
             }
         }
 
-        // --- APP FLOW ---
+        // --- FLOW: 1. NAME ---
         function startApp() {
-            speak("Welcome. Setup your profile.");
-            setTimeout(() => showScreen('screen-profile'), 2000);
+            speak("Welcome to Eye Guide. Please tell me your name.");
+            showScreen('screen-name');
         }
 
-        function saveProfile() {
-            userProfile.name = document.getElementById('input-name').value;
-            userProfile.emergency = document.getElementById('input-emergency').value;
-            if(!userProfile.name) return speak("Enter name.");
-            speak("Saved. Enable permissions.");
+        function saveName() {
+            userName = document.getElementById('input-name').value;
+            if(!userName) return speak("Please enter your name.");
+            speak(`Hello ${userName}. Next, we need camera and location access.`);
             showScreen('screen-permissions');
         }
 
+        // --- FLOW: 2. PERMISSIONS ---
         async function requestPermissions() {
             try {
+                // Camera
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
                 video.srcObject = stream;
                 await new Promise(r => video.onloadedmetadata = r);
-                
-                // START GPS WATCHER
+
+                // GPS - Start tracking immediately
                 if ("geolocation" in navigator) {
                     navigator.geolocation.watchPosition((pos) => {
                         currentPos.lat = pos.coords.latitude;
                         currentPos.lng = pos.coords.longitude;
-                        updateNavigation(); // Update arrow constantly
-                    }, (err) => console.error("GPS Error", err));
+                        if(destPos.lat) updateNavigation(); // Only update if dest is set
+                    });
                 }
 
                 initVoiceEngine();
-                speak("Access granted. Choose destination.");
-                showScreen('screen-destination');
+                speak("Access granted. How would you like to travel?");
+                showScreen('screen-mode');
             } catch (err) {
-                speak("Camera denied.");
+                speak("Camera or GPS access denied.");
+                alert("Please allow camera and location access.");
             }
         }
 
-        function selectMode() {
-            // SET DESTINATION (DEMO: 200m North of current location)
-            // 1 degree lat is approx 111km. 0.002 is approx 200m.
-            destPos.lat = currentPos.lat + 0.002; 
-            destPos.lng = currentPos.lng;
-            
-            speak("Walk or Vehicle?");
-            showScreen('screen-mode');
+        // --- FLOW: 3. SELECT MODE ---
+        function selectMode(mode) {
+            travelMode = mode;
+            speak(`You selected ${mode} mode. Where are you going?`);
+            showScreen('screen-destination');
         }
 
-        function selectWalk() {
-            travelMode = "WALK";
-            speak("Walking mode. Follow the yellow arrow.");
+        // --- FLOW: 4. DESTINATION & START ---
+        function startNavigation() {
+            destination = document.getElementById('input-dest').value;
+            if(!destination) return speak("Please enter a destination.");
+            
+            speak(`Navigating to ${destination}.`);
+            
+            // Set a simulated destination (200m North) for the demo
+            // In a real app, you would use a Geocoding API here.
+            destPos.lat = currentPos.lat + 0.002; 
+            destPos.lng = currentPos.lng;
+
             startMainApp();
         }
 
-        function selectVehicle() {
-            speak("Choose a taxi.");
-            showScreen('screen-taxi');
+        function activateVoiceInput() {
+            if(!recognition) initVoiceEngine();
+            if(isMicActive) recognition.stop();
+            else recognition.start();
         }
 
-        function bookRide(service) {
-            travelMode = "VEHICLE";
-            speak(`Booking ${service}.`);
-            setTimeout(() => {
-                speak("Driver arriving.");
-                startMainApp();
-            }, 1500);
-        }
-
+        // --- MAIN APP LOGIC ---
         function startMainApp() {
             showScreen('screen-app');
-            document.getElementById('hud-mode').innerText = travelMode;
+            document.getElementById('hud-mode').innerText = "MODE: " + travelMode;
 
             if (travelMode === "WALK") {
+                // WALK MODE: Camera + AR + Hazard Detection
                 canvas.style.display = "block";
-                mapFrame.style.display = "none";
-                navArrow.style.display = "block"; // Show Arrow
-                speak("Navigation started.");
+                document.getElementById('map-view').style.display = "none";
+                navArrow.style.display = "block";
+                
+                speak("Walking mode active. Follow the yellow arrow.");
+                
+                // Load AI
                 cocoSsd.load().then(m => { 
                     model = m; isModelLoaded = true; 
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight; 
                     detectFrame(); 
                 });
+
             } else {
+                // VEHICLE MODE: Google Maps Only
                 canvas.style.display = "none";
-                navArrow.style.display = "none"; // Hide Arrow
-                mapFrame.style.display = "block";
-                // Show route on map
+                navArrow.style.display = "none"; // Hide AR arrow
+                document.getElementById('map-view').style.display = "block";
+                
+                speak("Vehicle mode active. Following map route.");
                 const mapUrl = `https://maps.google.com/maps?q=${currentPos.lat},${currentPos.lng}&daddr=${destPos.lat},${destPos.lng}&output=embed`;
-                mapFrame.src = mapUrl;
+                document.getElementById('map-view').src = mapUrl;
             }
         }
 
-        // --- 🧭 CORE NAVIGATION LOGIC ---
+        // --- 🧭 AR NAVIGATION (Walk Only) ---
         function updateNavigation() {
-            if (travelMode !== "WALK" || !currentPos.lat) return;
+            if (travelMode !== "WALK") return;
 
             const distance = getDistanceFromLatLonInM(currentPos.lat, currentPos.lng, destPos.lat, destPos.lng);
-            
-            // Update Text
             distDisplay.innerText = Math.round(distance) + " m";
 
-            // Check Arrival
             if (distance < 10) {
                 navArrow.innerText = "🏁";
-                speak("You have arrived at your destination.");
+                speak("You have arrived.");
                 return;
             }
 
-            // Calculate Bearing (Direction)
+            // Calculate Bearing
             const bearing = calculateBearing(currentPos.lat, currentPos.lng, destPos.lat, destPos.lng);
-            
-            // In a real app, we'd use DeviceOrientation (Compass) to rotate the arrow relative to phone.
-            // For this web demo, we assume phone is held flat and facing North.
-            // If bearing is 0 (North), Arrow points Up (0deg). 
-            // If bearing is 90 (East), Arrow points Right (90deg).
-            
             navArrow.style.transform = `translate(-50%, -50%) rotate(${bearing}deg)`;
 
-            // Voice Guidance (Throttled)
             const now = Date.now();
-            if (now - lastNavSpeak > 5000) { // Speak every 5 seconds
+            if (now - lastNavSpeak > 5000) {
                 if (bearing > 20 && bearing < 160) speak("Turn Right");
                 else if (bearing < -20 || bearing > 200) speak("Turn Left");
                 else speak("Walk Straight");
@@ -295,38 +288,13 @@
             }
         }
 
-        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-            var R = 6371; // Radius of the earth in km
-            var dLat = deg2rad(lat2-lat1);  
-            var dLon = deg2rad(lon2-lon1); 
-            var a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2); 
-            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-            var d = R * c; // Distance in km
-            return d * 1000; // Meters
-        }
-
-        function calculateBearing(startLat, startLng, destLat, destLng) {
-            startLat = startLat * Math.PI / 180; 
-            startLng = startLng * Math.PI / 180; 
-            destLat = destLat * Math.PI / 180;
-            destLng = destLng * Math.PI / 180;
-            var y = Math.sin(destLng - startLng) * Math.cos(destLat);
-            var x = Math.cos(startLat) * Math.sin(destLat) -
-                    Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLng - startLng);
-            var brng = Math.atan2(y, x);
-            return (brng * 180 / Math.PI + 360) % 360; // Convert to degrees
-        }
-        function deg2rad(deg) { return deg * (Math.PI/180) }
-
-        // --- AI LOOP ---
+        // --- 🚨 HAZARD DETECTION (Walk Only) ---
         async function detectFrame() {
-            if (travelMode !== "WALK") return;
+            if (travelMode !== "WALK") return; // Stop AI loop if vehicle
             if (!isModelLoaded || video.paused) { requestAnimationFrame(detectFrame); return; }
             
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
             if (!isEmergency) {
                 const predictions = await model.detect(video);
                 checkForHazards(predictions);
@@ -337,7 +305,8 @@
 
         function checkForHazards(predictions) {
             const dangerClasses = ['car', 'truck', 'bus', 'motorcycle'];
-            const bottomHalf = canvas.height * 0.6;
+            const bottomHalf = canvas.height * 0.6; // Check path
+            
             for (let p of predictions) {
                 if (dangerClasses.includes(p.class) && p.score > 0.6) {
                     const [x, y, w, h] = p.bbox;
@@ -349,9 +318,13 @@
         function triggerHazardAlert(name) {
             isEmergency = true;
             document.getElementById('danger-overlay').style.display = 'flex';
-            document.getElementById('danger-text').innerText = `STOP!\n${name.toUpperCase()}`;
-            speak(`Stop! ${name} ahead!`);
-            setTimeout(() => { isEmergency = false; document.getElementById('danger-overlay').style.display = 'none'; }, 3000);
+            document.getElementById('danger-text').innerHTML = `STOP!<br>${name.toUpperCase()} AHEAD`;
+            speak(`Stop! A ${name} is coming!`);
+            setTimeout(() => { 
+                isEmergency = false; 
+                document.getElementById('danger-overlay').style.display = 'none'; 
+                speak("Path clear."); 
+            }, 3000);
         }
 
         function drawBoxes(predictions) {
@@ -363,6 +336,20 @@
             });
         }
 
+        // --- UTILS ---
+        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+            var R = 6371; var dLat = deg2rad(lat2-lat1); var dLon = deg2rad(lon2-lon1); 
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); var d = R * c; return d * 1000;
+        }
+        function calculateBearing(startLat, startLng, destLat, destLng) {
+            startLat = startLat * Math.PI / 180; startLng = startLng * Math.PI / 180; destLat = destLat * Math.PI / 180; destLng = destLng * Math.PI / 180;
+            var y = Math.sin(destLng - startLng) * Math.cos(destLat);
+            var x = Math.cos(startLat) * Math.sin(destLat) - Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLng - startLng);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+        function deg2rad(deg) { return deg * (Math.PI/180) }
+
         // --- VOICE ENGINE ---
         function initVoiceEngine() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -370,17 +357,21 @@
                 recognition = new SpeechRecognition();
                 recognition.continuous = false; recognition.lang = 'en-US';
                 recognition.onstart = () => { isMicActive = true; micBtn.classList.add('listening'); speak("Listening..."); };
-                recognition.onresult = (e) => processVoice(e.results[0][0].transcript.toLowerCase());
+                recognition.onresult = (e) => {
+                    const cmd = e.results[0][0].transcript.toLowerCase();
+                    if(document.getElementById('screen-destination').classList.contains('active-screen')) {
+                         // If on destination screen, treat input as destination
+                         document.getElementById('input-dest').value = cmd;
+                         speak("Destination set to " + cmd);
+                    } else {
+                        speak("You said: " + cmd);
+                    }
+                };
                 recognition.onerror = () => { isMicActive = false; micBtn.classList.remove('listening'); };
                 recognition.onend = () => { isMicActive = false; micBtn.classList.remove('listening'); };
             }
         }
         function toggleMic() { if(recognition) isMicActive ? recognition.stop() : recognition.start(); }
-        function processVoice(cmd) {
-            speak("You said " + cmd);
-            if(cmd.includes("taxi")) showScreen('screen-taxi');
-            else if(cmd.includes("help")) speak("Walk towards the yellow arrow.");
-        }
 
     </script>
 </body>
