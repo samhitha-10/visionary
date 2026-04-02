@@ -1,0 +1,21 @@
+/* --- MAIN APP UI --- */
+#app-screen { justify-content: flex-start; padding: 0; position: relative; overflow: hidden; } /* Added relative/hidden */
+#webcam { display: none; }
+
+/* UPDATED CANVAS STYLE */
+#output { 
+    display: block; /* Force it to be visible */
+    position: absolute; /* Force it to fill the screen */
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 1; /* Sit behind the HUD */
+}
+
+/* UPDATED HUD STYLE */
+#hud {
+    position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
+    box-sizing: border-box; display: flex; justify-content: space-between; 
+    background: rgba(0,0,0,0.5); z-index: 10; /* Sit ON TOP of the camera */
+}
