@@ -1,37 +1,491 @@
 <!DOCTYPE html>
-<html>
-<head><title>Test Mic</title></head>
-<body style="background:black; color:white; text-align:center; padding-top:50px;">
-    <h1>Microphone Test</h1>
-    <button onclick="testMic()" style="padding:20px; font-size:20px;">Click to Speak</button>
-    <p id="result">...</p>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EyeGuide - Advanced Safety</title>
+    <style>
+        body { margin: 0; padding: 0; background: #111; font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden; }
+        
+        /* --- SCREENS --- */
+        .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; text-align: center; position: relative; background: #000; }
+        .active-screen { display: flex; }
+        
+        /* --- START BUTTON --- */
+        .btn-start {
+            padding: 30px 60px; font-size: 28px; border: none; border-radius: 50px;
+            background: linear-gradient(45deg, #00ff00, #00aa00); color: #000;
+            font-weight: bold; cursor: pointer; box-shadow: 0 0 30px #00ff00;
+            animation: glow 2s infinite alternate;
+        }
+        @keyframes glow { from { box-shadow: 0 0 10px #00ff00; } to { box-shadow: 0 0 30px #00ff00; } }
+
+        /* --- LISTENING UI --- */
+        .listening-indicator {
+            font-size: 24px; color: #0f0; margin-top: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .mic-pulse {
+            width: 40px; height: 40px; background: red; border-radius: 50%;
+            animation: pulse-red 1s infinite;
+        }
+        @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* --- APP UI --- */
+        #screen-app { justify-content: flex-start; padding: 0; overflow: hidden; }
+        #webcam { display: none; }
+        #output { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        #map-view { display: none; width: 100%; height: 100%; border: 0; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* HUD */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); z-index: 20; }
+        .hud-info { background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px; border: 1px solid #444; font-size: 14px; }
+        .distance-display { color: #ffcc00; font-weight: bold; font-size: 18px; border: 1px solid #ffcc00; }
+        
+        /* SOS Button */
+        #sos-btn {
+            background: red; color: white; border: 2px solid white; border-radius: 50%;
+            width: 50px; height: 50px; font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 10px red;
+        }
+
+        /* AR Arrow */
+        #nav-arrow { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; color: rgba(255, 204, 0, 0.8); text-shadow: 0 0 10px black; z-index: 15; display: none; pointer-events: none; transition: transform 0.2s; }
+        
+        /* Danger */
+        #danger-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+        #danger-text { font-size: 40px; font-weight: bold; color: white; text-shadow: 0 0 10px red; text-align: center; }
+
+        /* Emergency Log */
+        #emergency-log {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 200px;
+            background: rgba(0,0,0,0.9); color: red; overflow-y: auto; padding: 10px;
+            font-family: monospace; z-index: 50; display: none; border-top: 2px solid red;
+        }
+    </style>
+    <!-- Load TensorFlow -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+</head>
+<body>
+
+    <!-- 1. START SCREEN -->
+    <div id="screen-start" class="screen active-screen">
+        <h1>EYE GUIDE</h1>
+        <p>Advanced Safety & Navigation</p>
+        <button class="btn-start" onclick="startProcess()">START PROCESS</button>
+    </div>
+
+    <!-- 2. VOICE NAME -->
+    <div id="screen-name" class="screen">
+        <h2>What is your name?</h2>
+        <div class="listening-indicator"><div class="mic-pulse"></div> Listening...</div>
+        <p id="result-name" style="margin-top:20px; color:#aaa;">...</p>
+    </div>
+
+    <!-- 3. VOICE PHONE -->
+    <div id="screen-phone" class="screen">
+        <h2>What is your 10-digit phone number?</h2>
+        <div class="listening-indicator"><div class="mic-pulse"></div> Listening...</div>
+        <p id="result-phone" style="margin-top:20px; color:#aaa;">...</p>
+    </div>
+
+    <!-- 4. VOICE MODE -->
+    <div id="screen-mode" class="screen">
+        <h2>Do you want to Walk or take a Vehicle?</h2>
+        <div class="listening-indicator"><div class="mic-pulse"></div> Listening...</div>
+        <p id="result-mode" style="margin-top:20px; color:#aaa;">...</p>
+    </div>
+
+    <!-- 5. VOICE VEHICLE TYPE (NEW) -->
+    <div id="screen-vehicle-type" class="screen">
+        <h2>Do you want to use your Own car or a Cab?</h2>
+        <div class="listening-indicator"><div class="mic-pulse"></div> Listening...</div>
+        <p id="result-vtype" style="margin-top:20px; color:#aaa;">...</p>
+    </div>
+
+    <!-- 6. VOICE CAB OPTIONS (NEW) -->
+    <div id="screen-cab-options" class="screen">
+        <h2>Options: Uber or Ola?</h2>
+        <div class="listening-indicator"><div class="mic-pulse"></div> Listening...</div>
+        <p id="result-cab" style="margin-top:20px; color:#aaa;">...</p>
+    </div>
+
+    <!-- 7. VOICE DESTINATION -->
+    <div id="screen-dest" class="screen">
+        <h2>Where are you going?</h2>
+        <div class="listening-indicator"><div class="mic-pulse"></div> Listening...</div>
+        <p id="result-dest" style="margin-top:20px; color:#aaa;">...</p>
+    </div>
+
+    <!-- 8. APP SCREEN -->
+    <div id="screen-app" class="screen">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="output"></canvas>
+        <iframe id="map-view" src="" allowfullscreen></iframe>
+        
+        <div id="nav-arrow">⬆️</div>
+
+        <div id="hud">
+            <div class="hud-info" id="hud-mode">MODE: --</div>
+            <div id="sos-btn" onclick="triggerEmergencyManual()">SOS</div>
+            <div class="distance-display" id="dist-display">-- m</div>
+        </div>
+
+        <div id="danger-overlay"><div id="danger-text">STOP!<br>HAZARD AHEAD</div></div>
+        
+        <!-- Emergency Call Log -->
+        <div id="emergency-log"></div>
+    </div>
 
     <script>
-        function testMic() {
+        // --- STATE ---
+        let step = 'START'; 
+        let userData = { name: "", phone: "", mode: "", vehicleType: "", cabService: "", dest: "" };
+        
+        // --- NAVIGATION STATE ---
+        let currentPos = { lat: 0, lng: 0 };
+        let destPos = { lat: 0, lng: 0 };
+        let lastNavSpeak = 0;
+        let navInterval = null; // For vehicle voice guidance
+
+        // --- AI ---
+        let model, isModelLoaded = false, isEmergency = false;
+        let video, canvas, ctx;
+
+        // --- VOICE ENGINE ---
+        let recognition;
+
+        // --- ELEMENTS ---
+        video = document.getElementById('webcam');
+        canvas = document.getElementById('output');
+        ctx = canvas.getContext('2d');
+        const screens = document.querySelectorAll('.screen');
+        const navArrow = document.getElementById('nav-arrow');
+        const distDisplay = document.getElementById('dist-display');
+        const logDiv = document.getElementById('emergency-log');
+
+        // --- NAVIGATION ---
+        function showScreen(id) {
+            screens.forEach(s => s.classList.remove('active-screen'));
+            document.getElementById(id).classList.add('active-screen');
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 1.0;
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        function logEmergency(msg) {
+            const time = new Date().toLocaleTimeString();
+            logDiv.style.display = 'block';
+            logDiv.innerHTML += `[${time}] ${msg}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // --- 1. START PROCESS ---
+        function startProcess() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                alert("Browser does not support Voice. Use Chrome.");
+            if(!SpeechRecognition) { alert("Voice not supported. Use Chrome."); return; }
+            
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onresult = (e) => handleVoiceInput(e.results[0][0].transcript.toLowerCase());
+            
+            recognition.onend = () => {
+                if(['NAME', 'PHONE', 'MODE', 'VEHICLE_TYPE', 'CAB_OPTIONS', 'DEST'].includes(step)) {
+                    setTimeout(() => recognition.start(), 100);
+                }
+            };
+
+            recognition.onerror = (e) => {
+                if(['NAME', 'PHONE', 'MODE', 'VEHICLE_TYPE', 'CAB_OPTIONS', 'DEST'].includes(step)) {
+                    setTimeout(() => recognition.start(), 1000);
+                }
+            };
+
+            step = 'NAME';
+            showScreen('screen-name');
+            speak("What is your name?");
+            setTimeout(() => recognition.start(), 1000);
+        }
+
+        // --- 2. VOICE LOGIC HANDLER ---
+        function handleVoiceInput(text) {
+            text = text.toLowerCase();
+            console.log("Step:", step, "Heard:", text);
+
+            // --- EMERGENCY CHECK GLOBAL ---
+            if (text.includes("help") || text.includes("accident") || text.includes("emergency") || text.includes("police") || text.includes("ambulance")) {
+                triggerEmergency();
                 return;
             }
-            
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'en-US';
-            
-            recognition.onstart = () => document.getElementById('result').innerText = "Listening...";
-            
-            recognition.onresult = (event) => {
-                const text = event.results[0][0].transcript;
-                alert("Heard: " + text);
-                document.getElementById('result').innerText = "Heard: " + text;
-            };
-            
-            recognition.onerror = (event) => {
-                alert("Error: " + event.error);
-                document.getElementById('result').innerText = "Error: " + event.error;
-            };
-            
-            recognition.start();
+
+            if (step === 'NAME') {
+                userData.name = text;
+                document.getElementById('result-name').innerText = "Name: " + userData.name;
+                speak("Got it. What is your 10-digit phone number?");
+                step = 'PHONE';
+                showScreen('screen-phone');
+            } 
+            else if (step === 'PHONE') {
+                // Extract digits
+                const digits = text.replace(/\D/g, '');
+                if (digits.length === 10) {
+                    userData.phone = digits;
+                    document.getElementById('result-phone').innerText = "Phone: " + userData.phone;
+                    speak("Saved. Do you want to Walk or take a Vehicle?");
+                    step = 'MODE';
+                    showScreen('screen-mode');
+                } else {
+                    speak("Please say a valid 10 digit number.");
+                }
+            } 
+            else if (step === 'MODE') {
+                if (text.includes('walk')) {
+                    userData.mode = 'WALK';
+                    document.getElementById('result-mode').innerText = "Mode: WALK";
+                    speak("Walking mode. Where are you going?");
+                    step = 'DEST';
+                    showScreen('screen-dest');
+                } else if (text.includes('vehicle') || text.includes('drive')) {
+                    userData.mode = 'VEHICLE';
+                    document.getElementById('result-mode').innerText = "Mode: VEHICLE";
+                    speak("Vehicle mode. Own car or Cab?");
+                    step = 'VEHICLE_TYPE';
+                    showScreen('screen-vehicle-type');
+                } else {
+                    speak("Please say Walk or Vehicle.");
+                }
+            } 
+            else if (step === 'VEHICLE_TYPE') {
+                if (text.includes('own')) {
+                    userData.vehicleType = 'OWN';
+                    speak("Own car selected. Where are you going?");
+                    step = 'DEST';
+                    showScreen('screen-dest');
+                } else if (text.includes('cab') || text.includes('taxi')) {
+                    userData.vehicleType = 'CAB';
+                    speak("Cab selected. Options: Uber or Ola?");
+                    step = 'CAB_OPTIONS';
+                    showScreen('screen-cab-options');
+                } else {
+                    speak("Say Own or Cab.");
+                }
+            }
+            else if (step === 'CAB_OPTIONS') {
+                if (text.includes('uber')) {
+                    userData.cabService = 'Uber';
+                    speak("Uber selected. Where are you going?");
+                } else if (text.includes('ola')) {
+                    userData.cabService = 'Ola';
+                    speak("Ola selected. Where are you going?");
+                } else {
+                    speak("Say Uber or Ola.");
+                    return;
+                }
+                step = 'DEST';
+                showScreen('screen-dest');
+            } 
+            else if (step === 'DEST') {
+                userData.dest = text;
+                document.getElementById('result-dest').innerText = "Dest: " + userData.dest;
+                speak("Navigating to " + userData.dest + ".");
+                step = 'APP';
+                initPermissionsAndApp();
+            }
         }
+
+        // --- 3. PERMISSIONS & START APP ---
+        async function initPermissionsAndApp() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                video.srcObject = stream;
+                await new Promise(r => video.onloadedmetadata = r);
+
+                // GPS
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.watchPosition((pos) => {
+                        currentPos.lat = pos.coords.latitude;
+                        currentPos.lng = pos.coords.longitude;
+                        if(destPos.lat) updateNavigation();
+                    });
+                }
+
+                // Set Simulated Dest
+                destPos.lat = currentPos.lat + 0.002; 
+                destPos.lng = currentPos.lng;
+
+                startMainApp();
+
+            } catch (err) {
+                speak("Camera or GPS access denied.");
+            }
+        }
+
+        function startMainApp() {
+            showScreen('screen-app');
+            document.getElementById('hud-mode').innerText = "MODE: " + userData.mode;
+
+            if (userData.mode === "WALK") {
+                canvas.style.display = "block";
+                document.getElementById('map-view').style.display = "none";
+                navArrow.style.display = "block";
+                
+                speak("Walking mode active. Follow the arrow. Say Help if you are in danger.");
+                cocoSsd.load().then(m => { 
+                    model = m; isModelLoaded = true; 
+                    canvas.width = video.videoWidth; canvas.height = video.videoHeight; 
+                    detectFrame(); 
+                });
+
+            } else {
+                canvas.style.display = "none";
+                navArrow.style.display = "none";
+                document.getElementById('map-view').style.display = "block";
+                
+                speak(`Vehicle mode active. ${userData.vehicleType} ${userData.cabService}. Following map route.`);
+                const mapUrl = `https://maps.google.com/maps?q=${currentPos.lat},${currentPos.lng}&daddr=${destPos.lat},${destPos.lng}&output=embed`;
+                document.getElementById('map-view').src = mapUrl;
+
+                // Start Voice Guidance Loop
+                startVehicleGuidance();
+            }
+        }
+
+        // --- 4. VEHICLE VOICE GUIDANCE ---
+        function startVehicleGuidance() {
+            // Simulate voice navigation for the vehicle
+            navInterval = setInterval(() => {
+                if(step !== 'APP') { clearInterval(navInterval); return; }
+                // Randomly give directions for demo
+                const directions = ["In 200 meters, turn left.", "Continue straight.", "Turn right at the next signal."];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                speak(dir);
+            }, 8000); // Every 8 seconds
+        }
+
+        // --- 5. WALKING NAVIGATION & HAZARD ---
+        function updateNavigation() {
+            if (userData.mode !== "WALK") return;
+
+            const distance = getDistanceFromLatLonInM(currentPos.lat, currentPos.lng, destPos.lat, destPos.lng);
+            distDisplay.innerText = Math.round(distance) + " m";
+
+            if (distance < 10) {
+                navArrow.innerText = "🏁";
+                speak("You have arrived.");
+                return;
+            }
+
+            const bearing = calculateBearing(currentPos.lat, currentPos.lng, destPos.lat, destPos.lng);
+            navArrow.style.transform = `translate(-50%, -50%) rotate(${bearing}deg)`;
+
+            const now = Date.now();
+            if (now - lastNavSpeak > 5000) {
+                if (bearing > 20 && bearing < 160) speak("Turn Right");
+                else if (bearing < -20 || bearing > 200) speak("Turn Left");
+                else speak("Walk Straight");
+                lastNavSpeak = now;
+            }
+        }
+
+        async function detectFrame() {
+            if (userData.mode !== "WALK") return;
+            if (!isModelLoaded || video.paused) { requestAnimationFrame(detectFrame); return; }
+            
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            if (!isEmergency) {
+                const predictions = await model.detect(video);
+                checkForHazards(predictions);
+                drawBoxes(predictions);
+            }
+            requestAnimationFrame(detectFrame);
+        }
+
+        function checkForHazards(predictions) {
+            const dangerClasses = ['car', 'truck', 'bus', 'motorcycle'];
+            const bottomHalf = canvas.height * 0.6;
+            
+            for (let p of predictions) {
+                if (dangerClasses.includes(p.class) && p.score > 0.6) {
+                    const [x, y, w, h] = p.bbox;
+                    if (y > bottomHalf) triggerHazardAlert(p.class);
+                }
+            }
+        }
+
+        function triggerHazardAlert(name) {
+            isEmergency = true;
+            document.getElementById('danger-overlay').style.display = 'flex';
+            document.getElementById('danger-text').innerHTML = `STOP!<br>${name.toUpperCase()} AHEAD`;
+            speak(`Stop! A ${name} is coming!`);
+            setTimeout(() => { 
+                isEmergency = false; 
+                document.getElementById('danger-overlay').style.display = 'none'; 
+                speak("Path clear."); 
+            }, 3000);
+        }
+
+        function drawBoxes(predictions) {
+            ctx.font = '16px Arial'; ctx.lineWidth = 2;
+            predictions.forEach(p => {
+                const [x, y, w, h] = p.bbox;
+                ctx.strokeStyle = '#0f0'; ctx.strokeRect(x, y, w, h);
+                ctx.fillStyle = '#0f0'; ctx.fillText(p.class, x, y - 5);
+            });
+        }
+
+        // --- 6. EMERGENCY SYSTEM (CORE FEATURE) ---
+        function triggerEmergencyManual() {
+            triggerEmergency();
+        }
+
+        function triggerEmergency() {
+            isEmergency = true;
+            speak("Emergency Mode Activated. Calling Police and Ambulance.");
+            logEmergency("🚨 EMERGENCY TRIGGERED 🚨");
+            
+            // 1. Call Police (Simulated 911 or 112)
+            logEmergency("Dialing 911 (Police)...");
+            window.location.href = "tel:911"; 
+            
+            setTimeout(() => {
+                // 2. Call Ambulance (Simulated)
+                logEmergency("Dialing Ambulance Service...");
+                // window.location.href = "tel:102"; // Local Ambulance number if known
+                
+                setTimeout(() => {
+                    // 3. Call Emergency Contact
+                    logEmergency(`Calling Emergency Contact: ${userData.phone}...`);
+                    window.location.href = `tel:${userData.phone}`;
+                }, 3000);
+            }, 3000);
+        }
+
+        // --- UTILS ---
+        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+            var R = 6371; var dLat = deg2rad(lat2-lat1); var dLon = deg2rad(lon2-lon1); 
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); var d = R * c; return d * 1000;
+        }
+        function calculateBearing(startLat, startLng, destLat, destLng) {
+            startLat = startLat * Math.PI / 180; startLng = startLng * Math.PI / 180; destLat = destLat * Math.PI / 180; destLng = destLng * Math.PI / 180;
+            var y = Math.sin(destLng - startLng) * Math.cos(destLat);
+            var x = Math.cos(startLat) * Math.sin(destLat) - Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLng - startLng);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+        function deg2rad(deg) { return deg * (Math.PI/180) }
+
     </script>
 </body>
 </html>
